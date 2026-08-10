@@ -7,6 +7,7 @@ export async function sendMessage(message) {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
+      session_id: "test-session",
       message: message,
     }),
   });
