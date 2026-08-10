@@ -1,6 +1,10 @@
 from fastapi import APIRouter, HTTPException
 
-from app.schemas.chat import ChatRequest, ChatResponse
+from app.schemas.chat import (
+    ChatRequest,
+    ChatResponse,
+)
+
 from app.services.chat_service import chat_with_llm
 
 
@@ -12,16 +16,21 @@ router = APIRouter(
 
 @router.post("", response_model=ChatResponse)
 async def chat(request: ChatRequest):
+
     try:
+
         response = await chat_with_llm(
-            message=request.message
+            session_id=request.session_id,
+            message=request.message,
         )
 
         return ChatResponse(
-            response=response
+            session_id=request.session_id,
+            response=response,
         )
 
     except Exception as error:
+
         raise HTTPException(
             status_code=500,
             detail=str(error),

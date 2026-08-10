@@ -24,22 +24,12 @@ MODEL_NAME = "llama-3.1-8b-instant"
 
 
 async def generate_response(
-    system_prompt: str,
-    user_message: str,
+    messages: list[dict],
 ) -> str:
 
     response = await client.chat.completions.create(
         model=MODEL_NAME,
-        messages=[
-            {
-                "role": "system",
-                "content": system_prompt,
-            },
-            {
-                "role": "user",
-                "content": user_message,
-            },
-        ],
+        messages=messages,
         temperature=0.7,
     )
 
