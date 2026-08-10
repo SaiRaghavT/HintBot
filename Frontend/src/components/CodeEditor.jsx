@@ -1,51 +1,85 @@
 import Editor from '@monaco-editor/react'
 import { useState } from 'react'
+import { runCode } from '../services/api'
 
 function CodeEditor() {
-  const [code, setCode] = useState(
-`def two_sum(nums, target):
+    const [code, setCode] = useState(
+        `def two_sum(nums, target):
     # Write your solution here
     pass`
-  )
+    )
 
-  function handleRun() {
-    console.log('Code:', code)
-  }
+    const [output, setOutput] = useState('')
+    const [isRunning, setIsRunning] = useState(false)
 
-  return (
-    <section className="editor-panel">
+    async function handleRun() {
+        console.log("RUN CLICKED")
+        console.log("CODE:", code)
 
-      <div className="editor-header">
-        <span>Python</span>
+        setIsRunning(true)
+        setOutput('Running...')
 
-        <button onClick={handleRun}>
-          Run
-        </button>
-      </div>
+        try {
+            console.log("Sending request to /api/run...")
 
-      <div className="editor">
-        <Editor
-          height="100%"
-          defaultLanguage="python"
-          value={code}
-          onChange={(value) => setCode(value || '')}
-          theme="vs-dark"
-          options={{
-            minimap: { enabled: false },
-            fontSize: 14,
-            padding: { top: 15 },
-            automaticLayout: true,
-          }}
-        />
-      </div>
+            const result = await runCode(code)
 
-      <div className="output">
-        <h3>Output</h3>
-        <p>Run your code to see the output.</p>
-      </div>
+            console.log("BACKEND RESULT:", result)
 
-    </section>
-  )
+            if (result.error) {
+                setOutput(result.error)
+            } else {
+                setOutput(result.output || 'No output')
+            }
+        } catch (error) {
+            console.error("RUN ERROR:", error)
+            setOutput(error.message)
+        }
+        finally {
+            setIsRunning(false)
+        }
+    }
+
+    return (
+        <section className="editor-panel">
+
+            <div className="editor-header">
+                <span>Python</span>
+
+                <button
+                    onClick={handleRun}
+                    disabled={isRunning}
+                >
+                    {isRunning ? 'Running...' : 'Run'}
+                </button>
+            </div>
+
+            <div className="editor">
+                <Editor
+                    height="100%"
+                    defaultLanguage="python"
+                    value={code}
+                    onChange={(value) => setCode(value || '')}
+                    theme="vs-dark"
+                    options={{
+                        minimap: { enabled: false },
+                        fontSize: 14,
+                        padding: {
+                            top: 15,
+                        },
+                        automaticLayout: true,
+                    }}
+                />
+            </div>
+
+            <div className="output">
+                <h3>Output</h3>
+
+                <pre>{output}</pre>
+            </div>
+
+        </section>
+    )
 }
 
 export default CodeEditor

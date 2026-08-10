@@ -20,3 +20,22 @@ export async function sendMessage(message) {
 
   return data.response;
 }
+
+export async function runCode(code) {
+  const response = await fetch(`${API_URL}/api/run`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      language: "python",
+      code: code,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to run code");
+  }
+
+  return await response.json();
+}
