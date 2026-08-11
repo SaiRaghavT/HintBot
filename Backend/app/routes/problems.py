@@ -55,7 +55,7 @@ router = APIRouter(
 async def get_current_problem():
 
     # Temporary: hardcoded problem for frontend development
-    problem = get_problem_by_id("1")
+    problem = get_problem_by_id("2")
 
     if problem is None:
         raise HTTPException(

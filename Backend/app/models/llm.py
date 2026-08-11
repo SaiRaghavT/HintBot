@@ -1,5 +1,4 @@
 import os
-
 from groq import AsyncGroq
 from dotenv import load_dotenv
 
