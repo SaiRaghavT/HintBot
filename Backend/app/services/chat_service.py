@@ -1,5 +1,8 @@
 from app.models.llm import generate_response
-from app.prompts import general_chat_prompt
+from app.prompts import (
+    general_chat_prompt,
+    hint_prompt,
+)
 
 from app.services.conversation_service import (
     get_history,
@@ -74,51 +77,20 @@ async def chat_with_llm(
     else:
         current_hint_level = hint_state["hint_level"]
 
-    hint_instructions = f"""
+    hint_context = f"""
 REQUEST TYPE:
 {request_type.value}
 
-HINT STATE:
-Hints used: {hint_state["hints_used"]}
-Maximum hints: {hint_state["max_hints"]}
-Current hint level: {hint_state["hint_level"]}
+HINTS USED:
+{hint_state["hints_used"]}
 
-If this is a HINT request:
+MAX HINTS:
+{hint_state["max_hints"]}
 
-Generate Hint Level {current_hint_level}.
+CURRENT HINT LEVEL:
+{current_hint_level}
 
-Level 1:
-Give a broad conceptual direction.
-Do not reveal the specific technique immediately.
-
-Level 2:
-Point the candidate toward the relevant technique
-or data structure.
-
-Level 3:
-Explain the algorithmic approach more specifically.
-
-Level 4:
-Give pseudocode-level guidance, but do not provide
-the complete implementation.
-
-Never provide the complete solution or complete code
-as part of a hint.
-
-If this is DEBUG:
-Focus on the candidate's code and execution result.
-Do NOT consume a hint.
-
-If this is CONCEPT:
-Explain the requested concept.
-Do NOT consume a hint.
-
-If this is GENERAL:
-Answer normally while remaining aware of the problem.
-
-If this is SOLUTION_REQUEST:
-Do not reveal the complete solution.
-Encourage the candidate to use the available hints first.
+{hint_prompt}
 """
 
     # --------------------------------------------------
@@ -191,29 +163,12 @@ Error:
     context_prompt = f"""
 {general_chat_prompt}
 
-{hint_instructions}
+{hint_context}
 
-You are currently helping the candidate solve the coding
-problem provided below.
-
-IMPORTANT TUTORING RULES:
-
-1. You MUST use the problem context when answering.
-2. You MUST consider the candidate's current code.
-3. You MUST consider the latest execution output/error.
-4. Do NOT give the complete solution immediately.
-5. Prefer guiding questions and incremental hints.
-6. If the candidate's code has a mistake, explain the
-   relevant issue without simply dumping the corrected solution.
-7. If the code has not been executed yet, reason from the
-   code itself and the problem requirements.
-8. Keep the candidate's current approach in mind before
-   suggesting a different approach.
-9. Do not invent requirements that are not present in the
-   problem statement.
-10. The goal is to help the candidate discover the solution.
-
-{problem_context}
+IMPORTANT:
+Keep your response concise.
+For hints, use 1-2 sentences whenever possible.
+Never provide the complete solution.
 """
 
     # --------------------------------------------------
@@ -241,11 +196,19 @@ IMPORTANT TUTORING RULES:
     # --------------------------------------------------
 
     response = await generate_response(
-        messages=messages
-    )
+    messages=messages
+)
 
     if request_type == RequestType.HINT:
         consume_hint(hint_state)
+
+    print(
+        f"[HINT DEBUG] "
+        f"session={session_id}, "
+        f"problem={problem_id}, "
+        f"used={hint_state['hints_used']}, "
+        f"max={hint_state['max_hints']}"
+    )
 
     # --------------------------------------------------
     # 7. Save conversation
