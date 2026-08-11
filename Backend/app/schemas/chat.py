@@ -30,3 +30,5 @@ class ChatRequest(BaseModel):
 class ChatResponse(BaseModel):
     session_id: str
     response: str
+    hints_used: int
+    max_hints: int

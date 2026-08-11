@@ -1,4 +1,5 @@
 from fastapi import APIRouter, HTTPException
+from app.services.hint_service import get_hint_states
 
 from app.schemas.chat import (
     ChatRequest,
@@ -28,9 +29,16 @@ async def chat(request: ChatRequest):
             execution_error=request.execution_error,
         )
 
+        hint_state = get_hint_state(
+            session_id=request.session_id,
+            problem_id=request.problem_id,
+        )
+
         return ChatResponse(
             session_id=request.session_id,
             response=response,
+            hints_used=hint_state["hints_used"],
+            max_hints=hint_state["max_hints"],
         )
 
     except ValueError as error:
