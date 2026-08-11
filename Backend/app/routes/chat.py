@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException
-from app.services.hint_service import get_hint_states
+from app.services.hint_service import get_hint_state
 
 from app.schemas.chat import (
     ChatRequest,
