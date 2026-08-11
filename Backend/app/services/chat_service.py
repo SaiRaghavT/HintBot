@@ -10,6 +10,14 @@ from app.services.problem_service import (
     get_problem_by_id,
 )
 
+from app.services.hint_service import (
+    RequestType,
+    get_hint_state,
+    can_use_hint,
+    consume_hint,
+    classify_request,
+)
+
 
 async def chat_with_llm(
     session_id: str,
@@ -30,6 +38,88 @@ async def chat_with_llm(
         raise ValueError(
             f"Problem not found: {problem_id}"
         )
+    request_type = classify_request(message)
+
+    hint_state = get_hint_state(
+        session_id=session_id,
+        problem_id=problem_id,
+    )
+
+    if request_type == RequestType.HINT:
+
+        if not can_use_hint(hint_state):
+
+            response = (
+                "I've given you the strongest hint I can "
+                "without revealing the solution. "
+                "Try implementing the approach and run your code."
+            )
+
+            add_message(
+                session_id=session_id,
+                role="user",
+                content=message,
+            )
+
+            add_message(
+                session_id=session_id,
+                role="assistant",
+                content=response,
+            )
+
+            return response
+
+        current_hint_level = hint_state["hint_level"] + 1
+
+    else:
+        current_hint_level = hint_state["hint_level"]
+
+    hint_instructions = f"""
+REQUEST TYPE:
+{request_type.value}
+
+HINT STATE:
+Hints used: {hint_state["hints_used"]}
+Maximum hints: {hint_state["max_hints"]}
+Current hint level: {hint_state["hint_level"]}
+
+If this is a HINT request:
+
+Generate Hint Level {current_hint_level}.
+
+Level 1:
+Give a broad conceptual direction.
+Do not reveal the specific technique immediately.
+
+Level 2:
+Point the candidate toward the relevant technique
+or data structure.
+
+Level 3:
+Explain the algorithmic approach more specifically.
+
+Level 4:
+Give pseudocode-level guidance, but do not provide
+the complete implementation.
+
+Never provide the complete solution or complete code
+as part of a hint.
+
+If this is DEBUG:
+Focus on the candidate's code and execution result.
+Do NOT consume a hint.
+
+If this is CONCEPT:
+Explain the requested concept.
+Do NOT consume a hint.
+
+If this is GENERAL:
+Answer normally while remaining aware of the problem.
+
+If this is SOLUTION_REQUEST:
+Do not reveal the complete solution.
+Encourage the candidate to use the available hints first.
+"""
 
     # --------------------------------------------------
     # 2. Get conversation history
@@ -101,6 +191,8 @@ Error:
     context_prompt = f"""
 {general_chat_prompt}
 
+{hint_instructions}
+
 You are currently helping the candidate solve the coding
 problem provided below.
 
@@ -151,6 +243,9 @@ IMPORTANT TUTORING RULES:
     response = await generate_response(
         messages=messages
     )
+
+    if request_type == RequestType.HINT:
+        consume_hint(hint_state)
 
     # --------------------------------------------------
     # 7. Save conversation
