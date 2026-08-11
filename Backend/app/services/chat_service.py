@@ -1,8 +1,5 @@
 from app.models.llm import generate_response
-from app.prompts import (
-    general_chat_prompt,
-    hint_prompt,
-)
+from app.prompts import hint_prompt
 
 from app.services.conversation_service import (
     get_history,
@@ -14,11 +11,9 @@ from app.services.problem_service import (
 )
 
 from app.services.hint_service import (
-    RequestType,
     get_hint_state,
     can_use_hint,
     consume_hint,
-    classify_request,
 )
 
 
@@ -41,56 +36,63 @@ async def chat_with_llm(
         raise ValueError(
             f"Problem not found: {problem_id}"
         )
-    request_type = classify_request(message)
-
     hint_state = get_hint_state(
         session_id=session_id,
         problem_id=problem_id,
     )
 
-    if request_type == RequestType.HINT:
+    if request_type == RequestType.SOLUTION_REQUEST:
 
-        if not can_use_hint(hint_state):
+        response = (
+            "I can't give you the complete solution. "
+            "I can give you a hint to help you figure it out."
+        )
 
-            response = (
-                "I've given you the strongest hint I can "
-                "without revealing the solution. "
-                "Try implementing the approach and run your code."
-            )
+        add_message(
+            session_id=session_id,
+            role="user",
+            content=message,
+        )
 
-            add_message(
-                session_id=session_id,
-                role="user",
-                content=message,
-            )
+        add_message(
+            session_id=session_id,
+            role="assistant",
+            content=response,
+        )
 
-            add_message(
-                session_id=session_id,
-                role="assistant",
-                content=response,
-            )
+        return response
 
-            return response
+    if not can_use_hint(hint_state):
 
-        current_hint_level = hint_state["hint_level"] + 1
+        response = (
+            "You've used all 4 hints for this problem. "
+            "Try implementing the approach and running your code."
+        )
 
-    else:
-        current_hint_level = hint_state["hint_level"]
+        add_message(
+            session_id=session_id,
+            role="user",
+            content=message,
+        )
+
+        add_message(
+            session_id=session_id,
+            role="assistant",
+            content=response,
+        )
+
+        return response
+
+    current_hint_level = hint_state["hint_level"] + 1
 
     hint_context = f"""
-REQUEST TYPE:
-{request_type.value}
+HINTBOT STATE:
 
-HINTS USED:
-{hint_state["hints_used"]}
+Hints already used: {hint_state["hints_used"]}
+Maximum hints: 4
+Current hint level: {current_hint_level}
 
-MAX HINTS:
-{hint_state["max_hints"]}
-
-CURRENT HINT LEVEL:
-{current_hint_level}
-
-{hint_prompt}
+Generate ONLY Hint Level {current_hint_level}.
 """
 
     # --------------------------------------------------
@@ -161,14 +163,61 @@ Error:
     # --------------------------------------------------
 
     context_prompt = f"""
-{general_chat_prompt}
+You are HintBot, a coding assessment hint assistant.
+
+Your ONLY purpose is to give the candidate hints about
+the coding problem they are currently solving.
+
+The candidate is already working on the problem provided
+below. NEVER ask what problem they are solving.
+
+You have access to:
+
+1. The complete problem statement visible to the candidate.
+2. The examples visible to the candidate.
+3. The constraints visible to the candidate.
+4. The candidate's current code.
+5. The latest execution output/error.
+6. The previous hint conversation.
 
 {hint_context}
 
-IMPORTANT:
-Keep your response concise.
-For hints, use 1-2 sentences whenever possible.
-Never provide the complete solution.
+HINT RULES:
+
+Hint Level 1:
+Give a very small conceptual nudge.
+Do not reveal the algorithm or data structure.
+
+Hint Level 2:
+Point toward the correct technique or data structure.
+Do not explain the complete approach.
+
+Hint Level 3:
+Explain the core algorithmic idea.
+The candidate should still implement it themselves.
+
+Hint Level 4:
+Give concise pseudocode-level guidance.
+Do not provide actual implementation code.
+
+CRITICAL RULES:
+
+- NEVER provide the complete solution.
+- NEVER provide complete code.
+- NEVER write a long explanation.
+- NEVER restate the problem.
+- NEVER ask what problem the candidate is solving.
+- NEVER start a generic conversation.
+- NEVER ask what topic they want to discuss.
+- ALWAYS respond specifically about the current problem.
+- Use the candidate's code when giving the hint.
+- Use the latest execution output/error when relevant.
+- Keep hints to 1-3 sentences.
+- Give ONLY the amount of information appropriate for the current hint level.
+
+CURRENT PROBLEM:
+
+{problem_context}
 """
 
     # --------------------------------------------------
@@ -196,11 +245,10 @@ Never provide the complete solution.
     # --------------------------------------------------
 
     response = await generate_response(
-    messages=messages
-)
+        messages=messages
+    )
 
-    if request_type == RequestType.HINT:
-        consume_hint(hint_state)
+    consume_hint(hint_state)
 
     print(
         f"[HINT DEBUG] "
