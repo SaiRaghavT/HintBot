@@ -41,27 +41,6 @@ async def chat_with_llm(
         problem_id=problem_id,
     )
 
-    if request_type == RequestType.SOLUTION_REQUEST:
-
-        response = (
-            "I can't give you the complete solution. "
-            "I can give you a hint to help you figure it out."
-        )
-
-        add_message(
-            session_id=session_id,
-            role="user",
-            content=message,
-        )
-
-        add_message(
-            session_id=session_id,
-            role="assistant",
-            content=response,
-        )
-
-        return response
-
     if not can_use_hint(hint_state):
 
         response = (
