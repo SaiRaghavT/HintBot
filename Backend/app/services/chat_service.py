@@ -66,7 +66,8 @@ async def chat_with_llm(
 
         response = (
             "You've used all 4 hints for this problem. "
-            "Try implementing the approach and running your code."
+            "I can't provide the solution. "
+            "Please implement what you've learned and run your code."
         )
 
         add_message(
