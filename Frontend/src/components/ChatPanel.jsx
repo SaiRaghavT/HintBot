@@ -1,16 +1,39 @@
 import { useState } from 'react'
 import ReactMarkdown from 'react-markdown'
+
 import { sendMessage } from '../services/api'
 
-function ChatPanel() {
+
+function ChatPanel({
+  sessionId,
+  problem,
+  code,
+  output,
+  executionError
+}) {
+
   const [message, setMessage] = useState('')
   const [messages, setMessages] = useState([])
+  const [isSending, setIsSending] = useState(false)
+
+  // Backend is the source of truth
+  const [hintsUsed, setHintsUsed] = useState(0)
+  const [maxHints, setMaxHints] = useState(4)
+
 
   async function handleSend() {
+
+    // Don't send empty messages
     if (!message.trim()) return
+
+    // Don't allow requests after all hints are used
+    if (hintsUsed >= maxHints) return
+
 
     const userMessage = message
 
+
+    // Show user's message immediately
     setMessages((prev) => [
       ...prev,
       {
@@ -19,20 +42,61 @@ function ChatPanel() {
       },
     ])
 
+
     setMessage('')
+    setIsSending(true)
+
 
     try {
-      const response = await sendMessage(userMessage)
 
+      console.log('CHAT CONTEXT:', {
+        sessionId,
+        problemId: problem?.frontend_id,
+        code,
+        output,
+        executionError,
+      })
+
+
+      const response = await sendMessage({
+
+        sessionId: sessionId,
+
+        problemId: problem?.frontend_id,
+
+        message: userMessage,
+
+        code: code,
+
+        executionOutput: output,
+
+        executionError: executionError,
+
+      })
+
+
+      console.log('CHAT RESPONSE:', response)
+
+
+      // Backend controls the hint count
+      setHintsUsed(response.hints_used)
+      setMaxHints(response.max_hints)
+
+
+      // Add only the AI response
       setMessages((prev) => [
         ...prev,
         {
           role: 'bot',
-          content: response,
+          content: response.response,
         },
       ])
+
+
     } catch (error) {
-      console.error(error)
+
+      console.error('CHAT ERROR:', error)
+
 
       setMessages((prev) => [
         ...prev,
@@ -41,43 +105,120 @@ function ChatPanel() {
           content: 'Sorry, something went wrong.',
         },
       ])
+
+
+    } finally {
+
+      setIsSending(false)
+
     }
+
   }
 
+
+  const hintsExhausted = hintsUsed >= maxHints
+
+
   return (
+
     <section className="chat-panel">
 
-      {/* Header */}
+
+      {/* =========================
+          HEADER
+      ========================= */}
 
       <div className="chat-header">
-        <h2>💡 HintBot</h2>
-        <span>● Online</span>
+
+        <h2>
+          💡 HintBot
+        </h2>
+
+        <span>
+          ● Online
+        </span>
+
       </div>
 
-      {/* Messages */}
+
+      {/* =========================
+          HINT INFORMATION
+      ========================= */}
+
+      <div className="hint-info">
+
+        <div className="hint-counter">
+
+          <span>
+            Hints used
+          </span>
+
+          <strong>
+            {hintsUsed} / {maxHints}
+          </strong>
+
+        </div>
+
+
+        <p>
+          HintBot helps you solve the problem
+          without giving away the solution.
+        </p>
+
+
+        <ul>
+
+          <li>
+            Hints become more specific as you ask.
+          </li>
+
+          <li>
+            Each message uses one hint.
+          </li>
+
+          <li>
+            HintBot guides you without giving the solution.
+          </li>
+
+        </ul>
+
+      </div>
+
+
+      {/* =========================
+          MESSAGES
+      ========================= */}
 
       <div className="chat-content">
 
+
         {messages.length === 0 && (
+
           <div className="welcome">
 
             <div className="welcome-icon">
               💡
             </div>
 
-            <h2>Hi, I'm HintBot</h2>
+
+            <h2>
+              Need a hint?
+            </h2>
+
 
             <p>
-              Stuck on this problem? Ask me for a hint.
-              I'll help you think through it instead of
-              giving you the answer straight away.
+              Ask HintBot when you're stuck.
+              Hints become progressively more
+              specific as you ask.
             </p>
 
-
           </div>
+
         )}
 
+
         {messages.map((msg, index) => (
+
           <div
             key={index}
             className={`message ${
@@ -87,53 +228,129 @@ function ChatPanel() {
             }`}
           >
 
+
             {msg.role === 'bot' && (
+
               <div className="avatar">
                 H
               </div>
+
             )}
+
 
             <div className="bubble">
 
               {msg.role === 'bot' ? (
+
                 <ReactMarkdown>
                   {String(msg.content)}
                 </ReactMarkdown>
+
               ) : (
-                <p>{String(msg.content)}</p>
+
+                <p>
+                  {String(msg.content)}
+                </p>
+
               )}
 
             </div>
 
           </div>
+
         ))}
+
+
+        {isSending && (
+
+          <div className="message bot-message">
+
+            <div className="avatar">
+              H
+            </div>
+
+
+            <div className="bubble">
+              Thinking...
+            </div>
+
+          </div>
+
+        )}
+
 
       </div>
 
-      {/* Input */}
+
+      {/* =========================
+          INPUT
+      ========================= */}
 
       <div className="chat-input">
 
+
         <input
+
           type="text"
-          placeholder="Ask HintBot for a hint..."
+
+          placeholder={
+            hintsExhausted
+              ? 'No hints remaining'
+              : 'Ask HintBot for a hint...'
+          }
+
           value={message}
-          onChange={(e) => setMessage(e.target.value)}
+
+          disabled={
+            isSending || hintsExhausted
+          }
+
+          onChange={(e) => {
+            setMessage(e.target.value)
+          }}
+
           onKeyDown={(e) => {
-            if (e.key === 'Enter') {
+
+            if (
+              e.key === 'Enter' &&
+              !isSending &&
+              !hintsExhausted
+            ) {
               handleSend()
             }
+
           }}
+
         />
 
-        <button onClick={handleSend}>
-          Send
+
+        <button
+
+          onClick={handleSend}
+
+          disabled={
+            isSending || hintsExhausted
+          }
+
+        >
+
+          {isSending
+            ? '...'
+            : hintsExhausted
+              ? 'No Hints'
+              : 'Send'
+          }
+
         </button>
+
 
       </div>
 
+
     </section>
+
   )
 }
+
 
 export default ChatPanel

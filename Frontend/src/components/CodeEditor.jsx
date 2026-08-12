@@ -1,21 +1,16 @@
 import Editor from '@monaco-editor/react'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { runCode } from '../services/api'
 
-function CodeEditor({ problem }) {
+function CodeEditor({
+    code,
+    setCode,
+    output,
+    setOutput,
+    setExecutionError
+}) {
 
-    const [code, setCode] = useState('')
-    const [output, setOutput] = useState('')
     const [isRunning, setIsRunning] = useState(false)
-
-    // Load starter code from backend
-    useEffect(() => {
-        if (problem) {
-            setCode(problem.starter_code || '')
-            setOutput('')
-        }
-    }, [problem])
-
 
     async function handleRun() {
 
@@ -24,6 +19,7 @@ function CodeEditor({ problem }) {
 
         setIsRunning(true)
         setOutput('Running...')
+        setExecutionError(null)
 
         try {
 
@@ -32,9 +28,15 @@ function CodeEditor({ problem }) {
             console.log('BACKEND RESULT:', result)
 
             if (result.error) {
+
                 setOutput(result.error)
+                setExecutionError(result.error)
+
             } else {
+
                 setOutput(result.output || 'No output')
+                setExecutionError(null)
+
             }
 
         } catch (error) {
@@ -42,6 +44,7 @@ function CodeEditor({ problem }) {
             console.error('RUN ERROR:', error)
 
             setOutput('Failed to run code.')
+            setExecutionError('Failed to run code.')
 
         } finally {
 
@@ -50,8 +53,8 @@ function CodeEditor({ problem }) {
         }
     }
 
-
     return (
+
         <section className="editor-panel">
 
             <div className="editor-header">
@@ -67,7 +70,6 @@ function CodeEditor({ problem }) {
 
             </div>
 
-
             <div className="editor">
 
                 <Editor
@@ -80,16 +82,18 @@ function CodeEditor({ problem }) {
                         minimap: {
                             enabled: false
                         },
+
                         fontSize: 14,
+
                         padding: {
                             top: 15
                         },
+
                         automaticLayout: true
                     }}
                 />
 
             </div>
-
 
             <div className="output">
 
@@ -100,6 +104,7 @@ function CodeEditor({ problem }) {
             </div>
 
         </section>
+
     )
 }
 

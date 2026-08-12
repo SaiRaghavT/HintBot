@@ -9,86 +9,122 @@ import { getCurrentProblem } from './services/api'
 
 function App() {
 
-    const [problem, setProblem] = useState(null)
-    const [loading, setLoading] = useState(true)
-    const [error, setError] = useState('')
+  // New session every time the page is refreshed
+  const [sessionId] = useState(() => crypto.randomUUID())
+
+  console.log('SESSION ID:', sessionId)
+
+  const [problem, setProblem] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  const [code, setCode] = useState('')
+  const [output, setOutput] = useState('')
+  const [executionError, setExecutionError] = useState(null)
 
 
-    useEffect(() => {
+  useEffect(() => {
 
-        async function loadProblem() {
+    async function loadProblem() {
 
-            try {
+      try {
 
-                const data = await getCurrentProblem()
+        const data = await getCurrentProblem()
 
-                console.log('CURRENT PROBLEM:', data)
+        console.log('CURRENT PROBLEM:', data)
 
-                setProblem(data)
+        setProblem(data)
 
-            } catch (error) {
+        // Load starter code from backend
+        setCode(data.starter_code || '')
 
-                console.error(error)
+      } catch (error) {
 
-                setError('Failed to load problem.')
+        console.error(error)
 
-            } finally {
+        setError('Failed to load problem.')
 
-                setLoading(false)
+      } finally {
 
-            }
-        }
+        setLoading(false)
 
-        loadProblem()
-
-    }, [])
-
-
-    if (loading) {
-        return <div>Loading problem...</div>
+      }
     }
 
+    loadProblem()
 
-    if (error) {
-        return <div>{error}</div>
-    }
-
-
-    return (
-
-        <div className="app">
-
-            <nav className="navbar">
-
-                <div className="navbar-brand">
-                    <span className="brand-icon">💡</span>
-                    <span>HintBot</span>
-                </div>
-
-                <div className="navbar-profile">
-                    <span>R</span>
-                </div>
-
-            </nav>
+  }, [])
 
 
-            <div className="workspace">
+  if (loading) {
+    return <div>Loading problem...</div>
+  }
 
-                <ProblemPanel
-                    problem={problem}
-                />
 
-                <CodeEditor
-                    problem={problem}
-                />
+  if (error) {
+    return <div>{error}</div>
+  }
 
-                <ChatPanel />
 
-            </div>
+  return (
+
+    <div className="app">
+
+      <nav className="navbar">
+
+        <div className="navbar-brand">
+
+          <span className="brand-icon">
+            💡
+          </span>
+
+          <span>
+            HintBot
+          </span>
 
         </div>
 
-    )
+
+        <div className="navbar-profile">
+
+          <span>
+            R
+          </span>
+
+        </div>
+
+      </nav>
+
+
+      <div className="workspace">
+
+        <ProblemPanel
+          problem={problem}
+        />
+
+
+        <CodeEditor
+          code={code}
+          setCode={setCode}
+          output={output}
+          setOutput={setOutput}
+          setExecutionError={setExecutionError}
+        />
+
+
+        <ChatPanel
+          sessionId={sessionId}
+          problem={problem}
+          code={code}
+          output={output}
+          executionError={executionError}
+        />
+
+      </div>
+
+    </div>
+
+  )
 }
 
 
